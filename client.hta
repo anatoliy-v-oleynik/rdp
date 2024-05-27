@@ -1,0 +1,128 @@
+﻿<html>
+<head>
+	<title>warden</title>
+	<meta HTTP-EQUIV=Content-Type content='text/html;charset=UTF-8'>
+	<meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
+	<meta HTTP-EQUIV="Expires" CONTENT="-1">
+	<HTA:APPLICATION
+		ID="warden"
+		APPLICATIONNAME="warden"
+		BORDER="dialog"
+		BORDERSTYLE="sunken"
+		CAPTION="no"
+		CONTEXTMENU="no"
+		MAXIMIZEBUTTON="no"
+		MINIMIZEBUTTON="no"
+		SCROLL="no"
+		SHOWINTASKBAR="no"
+		SINGLEINSTANCE="yes"
+		WINDOWSTATE="minimize"
+		SYSMENU="yes">	
+
+	<script Language="JavaScript">
+
+		//*******************************************************************************************
+		// Путь к общей папке в которую сохраняется информация о сессиях (УКАЗАТЬ СВОЙ)
+		//*******************************************************************************************
+		var SHARED_PATH = "\\\\workspace\\rdp\\";
+		
+		//*******************************************************************************************
+		// Номер сети (УКАЗАТЬ СВОЙ)
+		//*******************************************************************************************
+		var NETWORK_NUM = "192.168.100";
+
+		moveTo(-9999,-9999);
+		var network=new ActiveXObject('WScript.Network');
+		var fso = new ActiveXObject("Scripting.FileSystemObject");
+		var log_file = fso.OpenTextFile(SHARED_PATH + ".log\\" + new Date().toLocaleDateString() + "_" + network.ComputerName + ".txt", 8, 1);
+
+		var session = null;
+
+		function CreateSession()
+		{
+			var s = new ActiveXObject("Rdpcomapi.RDPSession");
+			s.Open();		
+		
+			var session_dom = new ActiveXObject('Microsoft.XMLDOM');
+			session_dom.setProperty("SelectionLanguage", "XPath");
+			session_dom.loadXML(s.Invitations.CreateInvitation(network.ComputerName, "avo", "pwd", 5).ConnectionString);
+			
+			var cd_nodes = session_dom.selectNodes("/E/C/T/L[not(starts-with(@N, '" + NETWORK_NUM + "'))]");
+			for(var n = 0; n < cd_nodes.length; n++) cd_nodes(n).parentNode.removeChild(cd_nodes(n));
+			
+			var cd_nodes = session_dom.selectNodes("/E/C/T/L[starts-with(@N, '" + NETWORK_NUM + "')]");
+			for(var n = 0; n < cd_nodes.length; n++) cd_nodes(n).setAttribute("N", network.ComputerName);	
+			
+			var file = fso.OpenTextFile(SHARED_PATH + network.ComputerName, 2, 1);
+			file.WriteLine(session_dom.xml);
+			file.Close();
+			
+			session = s;
+		};
+		
+		CreateSession();
+
+		var reconnect_interval = setInterval(function()
+		{
+			log_file.WriteLine(new Date().toLocaleTimeString() + ":" + "Invitations.Count:" + session.Invitations.Count + "|ClientConnected:" + !new Enumerator(session.Attendees).atEnd());
+		
+			if (session != null && new Enumerator(session.Attendees).atEnd())
+			{
+				fso.DeleteFile(SHARED_PATH + network.ComputerName);
+			
+				session.Close();
+				session = null;
+				
+				log_file.WriteLine(new Date().toLocaleTimeString() + ":RECREATESESSION");				
+				
+				CreateSession();
+			}
+
+		}, 1000 * 60 * 30);
+
+		var connections_dom = new ActiveXObject('Microsoft.XMLDOM');
+		connections_dom.setProperty("SelectionLanguage", "XPath");
+
+		var interval = setInterval(function()
+		{
+			if (session != null)
+			{
+				if (fso.FileExists(SHARED_PATH + network.ComputerName + ".rcs"))
+				{
+					var file = fso.OpenTextFile(SHARED_PATH + network.ComputerName + ".rcs", 1, 0);
+					connections_dom.loadXML(file.ReadAll());
+					file.Close();	
+					fso.DeleteFile(SHARED_PATH + network.ComputerName + ".rcs");
+					session.ConnectToClient(connections_dom.xml);
+					
+					log_file.WriteLine(new Date().toLocaleTimeString() + ":" + connections_dom.xml);
+				}
+
+				for(var o=new Enumerator(session.Attendees);!o.atEnd();o.moveNext()){
+					log_file.WriteLine(new Date().toLocaleTimeString() + ":" + "WAIT level:" + o.item().ControlLevel + "|PeerIP:" + o.item().ConnectivityInfo.PeerIP + "|PeerPort:" + o.item().ConnectivityInfo.PeerPort);
+				
+					if ((o.item().ControlLevel <= 1) &&
+						(o.item().ConnectivityInfo.PeerIP == connections_dom.documentElement.getAttribute("ip_address")) &&
+						(o.item().ConnectivityInfo.PeerPort == connections_dom.documentElement.getAttribute("ip_port"))) {
+						o.item().ControlLevel = connections_dom.documentElement.getAttribute("level");
+						
+						log_file.WriteLine(new Date().toLocaleTimeString() + ":" + "CONNECTED level:" + o.item().ControlLevel + "|PeerIP:" + o.item().ConnectivityInfo.PeerIP + "|PeerPort:" + o.item().ConnectivityInfo.PeerPort);
+					}
+				}
+			}
+
+		}, 1000);
+
+		window.onunload = function()
+		{
+			fso.DeleteFile(SHARED_PATH + network.ComputerName);
+		}
+		
+	</script>
+</head>
+<body style="margin:0" scroll="no">
+</body>
+<head>
+	<meta http-equiv="pragma" content="no-cache">
+</head>
+</html>

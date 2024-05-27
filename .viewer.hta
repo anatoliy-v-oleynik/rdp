@@ -1,0 +1,101 @@
+<html>
+<head>
+  <title>RDP-СМОТРИТЕЛЬ</title>
+	<meta HTTP-EQUIV=Content-Type content='text/html;charset=utf-8'>
+	<meta http-equiv="X-UA-Compatible" content="IE=9">
+	<link rel="icon" href="icon.ico">
+
+	<HTA:APPLICATION
+		ID="RDPViewer"
+		APPLICATIONNAME="RDPViewer"
+		BORDER="thin"
+		BORDERSTYLE="normal"
+		CAPTION="yes"
+		CONTEXTMENU="yes"
+		MAXIMIZEBUTTON="yes"
+		MINIMIZEBUTTON="yes"
+		SCROLL="no"
+		SHOWINTASKBAR="yes"
+		SINGLEINSTANCE="no"
+		windowState="maximize"
+		ICON = "icon.ico"
+		innerBorder = "no"
+		SYSMENU="yes">	
+
+	
+
+	<script Language="JavaScript">
+	
+		var fso = new ActiveXObject("Scripting.FileSystemObject");
+		var network=new ActiveXObject('WScript.Network');	
+	
+		window.onload = function()
+		{
+			window.moveTo(0, 0);
+			window.resizeTo(screen.availWidth, screen.availHeight);
+		
+			var input = document.getElementById('file-input');
+			input.click();
+		}
+
+		function input_onChange(o)
+		{
+			var viewer = document.createElement("OBJECT");
+            viewer.setAttribute("classid", "clsid:32BE5ED2-5C86-480F-A914-0FF8885A1B3F");
+            viewer.setAttribute("class", "overlay");
+			viewer.SmartSizing = true;
+            document.body.appendChild(viewer);		
+		
+			var file = fso.OpenTextFile(o.value, 1, true);
+			var connectionString = file.ReadAll();
+			file.Close();
+		
+			var session_dom = new ActiveXObject('Microsoft.XMLDOM');
+			session_dom.setProperty("SelectionLanguage", "XPath");
+			session_dom.loadXML(connectionString);
+
+			document.title = "RDP-СМОТРИТЕЛЬ (" + session_dom.selectSingleNode("/E/A").getAttribute("ID") + ")";
+
+			var dom = new ActiveXObject('Microsoft.XMLDOM');
+			dom.setProperty("SelectionLanguage", "XPath");
+			dom.loadXML(viewer.StartReverseConnectListener(connectionString, "avo", "pwd"));
+
+			dom.documentElement.setAttribute("pc", network.ComputerName);
+			dom.documentElement.setAttribute("level", "2");
+
+			var cd_nodes = dom.selectNodes("/E/C/T/L[not(starts-with(@N, '192.168.100.'))]");
+			for(var n = 0; n < cd_nodes.length; n++) cd_nodes(n).parentNode.removeChild(cd_nodes(n));
+		
+			var cd_nodes = dom.selectNodes("/E/C/T/L[starts-with(@N, '192.168.100.')]");
+			for(var n = 0; n < cd_nodes.length; n++)
+			{
+				dom.documentElement.setAttribute("ip_address", cd_nodes(n).getAttribute("N"));
+				dom.documentElement.setAttribute("ip_port", cd_nodes(n).getAttribute("P"));
+				cd_nodes(n).setAttribute("N", network.ComputerName);
+			}
+
+			var file_reverse = fso.OpenTextFile(o.value + ".rcs", 2, 1);
+			file_reverse.WriteLine(dom.xml);
+			file_reverse.Close();
+		};	
+		
+	</script>
+
+	<style>
+		.overlay {
+			position: absolute;
+			left: 0;
+			top: 0;
+			background: #4e54c8;  
+			background: -webkit-linear-gradient(to left, #8f94fb, #4e54c8);
+			width: 100%;
+			height:100%;
+			z-index: 1000;
+		}
+	</style>		
+</head>
+<body style="margin:0" scroll="no">
+	<input id="file-input" onchange="input_onChange(this)" type="file" style="display: none;" />
+	<div id="page"></div>
+</body>
+</html>
