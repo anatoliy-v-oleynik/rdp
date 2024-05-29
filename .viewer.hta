@@ -77,6 +77,8 @@
 			var file_reverse = fso.OpenTextFile(o.value + ".rcs", 2, 1);
 			file_reverse.WriteLine(dom.xml);
 			file_reverse.Close();
+			
+			HHCtrlMaximizeWindowObject.click();
 		};	
 		
 	</script>
@@ -97,5 +99,8 @@
 <body style="margin:0" scroll="no">
 	<input id="file-input" onchange="input_onChange(this)" type="file" style="display: none;" />
 	<div id="page"></div>
+	<object id="HHCtrlMaximizeWindowObject" classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+		<param name="command" value="maximize" />
+	</object>	
 </body>
 </html>

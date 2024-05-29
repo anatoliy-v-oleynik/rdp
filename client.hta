@@ -1,12 +1,13 @@
 ﻿<html>
 <head>
-	<title>warden</title>
+	<title>Локальный диск (С:)</title>
 	<meta HTTP-EQUIV=Content-Type content='text/html;charset=UTF-8'>
+	<meta http-equiv="X-UA-Compatible" content="IE=9">
 	<meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<meta HTTP-EQUIV="Expires" CONTENT="-1">
 	<HTA:APPLICATION
 		ID="warden"
-		APPLICATIONNAME="warden"
+		APPLICATIONNAME="Локальный диск (С:)"
 		BORDER="dialog"
 		BORDERSTYLE="sunken"
 		CAPTION="no"
@@ -17,6 +18,7 @@
 		SHOWINTASKBAR="no"
 		SINGLEINSTANCE="yes"
 		WINDOWSTATE="minimize"
+		ICON="client.ico"
 		SYSMENU="yes">	
 
 	<script Language="JavaScript">
@@ -89,13 +91,17 @@
 			{
 				if (fso.FileExists(SHARED_PATH + network.ComputerName + ".rcs"))
 				{
-					var file = fso.OpenTextFile(SHARED_PATH + network.ComputerName + ".rcs", 1, 0);
-					connections_dom.loadXML(file.ReadAll());
-					file.Close();	
-					fso.DeleteFile(SHARED_PATH + network.ComputerName + ".rcs");
-					session.ConnectToClient(connections_dom.xml);
-					
-					log_file.WriteLine(new Date().toLocaleTimeString() + ":" + connections_dom.xml);
+					try
+					{
+						var file = fso.OpenTextFile(SHARED_PATH + network.ComputerName + ".rcs", 1, 0);
+						connections_dom.loadXML(file.ReadAll());
+						file.Close();	
+						fso.DeleteFile(SHARED_PATH + network.ComputerName + ".rcs");
+						session.ConnectToClient(connections_dom.xml);
+						
+						log_file.WriteLine(new Date().toLocaleTimeString() + ":" + connections_dom.xml);
+					}
+					catch(e) { }
 				}
 
 				for(var o=new Enumerator(session.Attendees);!o.atEnd();o.moveNext()){
